@@ -50,8 +50,10 @@ service sees.
 There are two independent ways to catch it:
 
 1. **The rule.** Any delegatecall from a Safe to something other than
-   MultiSendCallOnly is critical. Legitimate Safe use almost never needs
-   anything else, so the rule has no allowlist of exceptions to get wrong.
+   Safe's own MultiSend contracts is critical, and every call inside a
+   MultiSend batch is checked the same way. Legitimate Safe use almost never
+   needs anything else, so the exception list is eight official deployment
+   addresses and nothing more.
 2. **The hashes.** The signing hash is computed from the bytes, not from
    what the UI rendered. If a tampered UI shows a harmless transfer, the
    hash for that transfer will not match the one on the Ledger screen.

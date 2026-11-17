@@ -191,3 +191,53 @@ fn approvals_name_the_spender_as_counterparty() {
         .unwrap();
     assert_eq!(r.findings[0].counterparty, Some(spender));
 }
+
+/// SafeTx typed data that delegatecalls `to` with `data`.
+fn safe_tx_typed(to: &str, data: &str) -> Value {
+    let mut req = load("bybit_safetx_typed");
+    let mut typed: Value = serde_json::from_str(req["params"][1].as_str().unwrap()).unwrap();
+    typed["message"]["to"] = json!(to);
+    typed["message"]["data"] = json!(data);
+    req["params"][1] = json!(typed.to_string());
+    req
+}
+
+/// multiSend(bytes) calldata for one packed inner call.
+fn multisend_of(op: u8, to: &str, inner: &str) -> String {
+    let inner = inner.trim_start_matches("0x");
+    let packed = format!(
+        "{op:02x}{}{:064x}{:064x}{inner}",
+        to.trim_start_matches("0x"),
+        0,
+        inner.len() / 2
+    );
+    let padded = format!("{packed:0<width$}", width = packed.len().div_ceil(64) * 64);
+    format!("0x8d80ff0a{:064x}{:064x}{padded}", 32, packed.len() / 2)
+}
+
+#[test]
+fn delegatecall_to_safe_multisend_is_allowed_but_its_calls_are_still_checked() {
+    let multisend_150 = "0x218543288004CD07832472D464648173c77D7eB7";
+    let usdc = "0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48";
+    let transfer = format!(
+        "0xa9059cbb{:0>64}{:064x}",
+        "5b38da6a701c568545dcfcb03fcb875f56beddc4", 1
+    );
+
+    let plain = analyze(&safe_tx_typed(
+        multisend_150,
+        &multisend_of(0, usdc, &transfer),
+    ))
+    .unwrap();
+    assert!(plain.verdict() < High, "{:?}", plain.findings);
+    assert!(plain.findings.iter().any(|f| f.code == "safe.multisend"));
+
+    let bybit_target = "0x96221423681a6d52e184d440a8efcebb105c7242";
+    let hidden = analyze(&safe_tx_typed(
+        multisend_150,
+        &multisend_of(1, bybit_target, &transfer),
+    ))
+    .unwrap();
+    assert_eq!(hidden.verdict(), Critical);
+    assert_eq!(hidden.top().unwrap().code, "safe.delegatecall");
+}

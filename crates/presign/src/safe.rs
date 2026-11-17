@@ -8,7 +8,9 @@ use alloy_primitives::{Address, U256};
 pub(crate) fn safe_tx(r: &mut Report, to: Address, value: U256, data: &[u8], op: u8, depth: u8) {
     match op {
         0 => call(r, Some(to), data, value, depth + 1),
-        1 if known(to).is_some_and(|n| n.starts_with("Safe MultiSendCallOnly")) => {
+        // Each call inside a MultiSend batch goes back through safe_tx, so a
+        // delegatecall hidden in the batch is still reported as critical.
+        1 if known(to).is_some_and(|n| n.starts_with("Safe MultiSend")) => {
             r.add(
                 "safe.multisend",
                 Severity::Info,

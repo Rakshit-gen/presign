@@ -33,6 +33,7 @@ pub(crate) const MAX_DEPTH: u8 = 4;
 pub(crate) fn call(r: &mut Report, to: Option<Address>, data: &[u8], value: U256, depth: u8) {
     if depth > MAX_DEPTH {
         r.add(
+            "tx.too_deep",
             Severity::High,
             "calls are nested too deeply to inspect; refusing to call it safe",
         );
@@ -40,14 +41,16 @@ pub(crate) fn call(r: &mut Report, to: Option<Address>, data: &[u8], value: U256
     }
     let target = to.map(who).unwrap_or_else(|| "a new contract".into());
     if !value.is_zero() {
-        r.add(
+        r.add_with(
+            "tx.eth_value",
+            to,
             Severity::Info,
             format!("sends {} ETH to {target}", eth(value)),
         );
     }
     let Some(sel) = data.get(..4) else {
         if value.is_zero() {
-            r.add(Severity::Info, "carries no data and no ETH");
+            r.add("tx.empty", Severity::Info, "carries no data and no ETH");
         }
         return;
     };
@@ -60,6 +63,7 @@ pub(crate) fn call(r: &mut Report, to: Option<Address>, data: &[u8], value: U256
                 Ok(c) => c,
                 Err(_) => {
                     r.add(
+                        "tx.malformed",
                         Severity::High,
                         format!("{} on {target} has malformed arguments", <$t>::SIGNATURE),
                     );
@@ -81,7 +85,9 @@ pub(crate) fn call(r: &mut Report, to: Option<Address>, data: &[u8], value: U256
         setApprovalForAllCall::SELECTOR => {
             let c = decode!(setApprovalForAllCall);
             if !c.approved {
-                r.add(
+                r.add_with(
+                    "nft.revoke",
+                    c.operator,
                     Severity::Info,
                     format!("revokes {} from collection {token}", who(c.operator)),
                 );
@@ -91,7 +97,9 @@ pub(crate) fn call(r: &mut Report, to: Option<Address>, data: &[u8], value: U256
                 } else {
                     Severity::High
                 };
-                r.add(
+                r.add_with(
+                    "nft.approval_for_all",
+                    c.operator,
                     sev,
                     format!(
                         "gives {} control of every NFT you own in collection {token}, \
@@ -103,7 +111,9 @@ pub(crate) fn call(r: &mut Report, to: Option<Address>, data: &[u8], value: U256
         }
         transferCall::SELECTOR => {
             let c = decode!(transferCall);
-            r.add(
+            r.add_with(
+                "token.transfer",
+                c.to,
                 Severity::Info,
                 format!(
                     "sends {} of token {token} to {}",
@@ -122,7 +132,9 @@ pub(crate) fn call(r: &mut Report, to: Option<Address>, data: &[u8], value: U256
         }
         enableModuleCall::SELECTOR => {
             let c = decode!(enableModuleCall);
-            r.add(
+            r.add_with(
+                "safe.module",
+                c.module,
                 Severity::Critical,
                 format!(
                     "enables {} as a Safe module. A module can move funds without any \
@@ -135,14 +147,18 @@ pub(crate) fn call(r: &mut Report, to: Option<Address>, data: &[u8], value: U256
         | removeOwnerCall::SELECTOR
         | swapOwnerCall::SELECTOR
         | changeThresholdCall::SELECTOR => r.add(
+            "safe.owners",
             Severity::High,
             format!("changes who controls the Safe at {target}"),
         ),
         setGuardCall::SELECTOR | setFallbackHandlerCall::SELECTOR => r.add(
+            "safe.hooks",
             Severity::High,
             format!("replaces a security hook on the Safe at {target}"),
         ),
-        _ => r.add(
+        _ => r.add_with(
+            "tx.unknown_function",
+            to,
             Severity::Low,
             format!(
                 "calls unknown function 0x{} on {target}; it cannot be decoded offline",
@@ -154,7 +170,9 @@ pub(crate) fn call(r: &mut Report, to: Option<Address>, data: &[u8], value: U256
 
 fn approval(r: &mut Report, token: &str, spender: Address, amt: U256, increase: bool) {
     if amt.is_zero() && !increase {
-        r.add(
+        r.add_with(
+            "approval.revoke",
+            spender,
             Severity::Info,
             format!("revokes the approval of {} on token {token}", who(spender)),
         );
@@ -179,5 +197,14 @@ fn approval(r: &mut Report, token: &str, spender: Address, amt: U256, increase: 
             amount(amt)
         )
     };
-    r.add(sev, message);
+    r.add_with(
+        if unlimited(amt) {
+            "approval.unlimited"
+        } else {
+            "approval.limited"
+        },
+        spender,
+        sev,
+        message,
+    );
 }

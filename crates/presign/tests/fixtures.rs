@@ -2,29 +2,34 @@ use presign::{Severity, Severity::*, analyze};
 use serde_json::{Value, json};
 use std::fs;
 
-const CASES: &[(&str, Severity)] = &[
-    ("approve_revoke", Info),
-    ("approve_unlimited_permit2", Low),
-    ("approve_unlimited_unknown", High),
-    ("bybit_exec_transaction", Critical),
-    ("bybit_safetx_typed", Critical),
-    ("eth_sign_hash", Critical),
-    ("eip7702_clear", Info),
-    ("eip7702_delegation_any_chain", Critical),
-    ("eth_transfer", Info),
-    ("increase_allowance_unknown", High),
-    ("permit_dai_allowed", Critical),
-    ("permit_unlimited_unknown", Critical),
-    ("permit2_batch_unknown", Critical),
-    ("permit2_single_uniswap", Low),
-    ("personal_sign_hash", High),
-    ("personal_sign_text", Info),
-    ("safe_multisend_hidden_approve", High),
-    ("seaport_listing", Info),
-    ("seaport_zero_price", Critical),
-    ("set_approval_for_all_opensea", Low),
-    ("set_approval_for_all_unknown", High),
-    ("unknown_function", Low),
+/// Fixture name, expected verdict, and the code of the most severe finding.
+const CASES: &[(&str, Severity, &str)] = &[
+    ("approve_revoke", Info, "approval.revoke"),
+    ("approve_unlimited_permit2", Low, "approval.unlimited"),
+    ("approve_unlimited_unknown", High, "approval.unlimited"),
+    ("bybit_exec_transaction", Critical, "safe.delegatecall"),
+    ("bybit_safetx_typed", Critical, "safe.delegatecall"),
+    ("eth_sign_hash", Critical, "sign.eth_sign"),
+    ("eip7702_clear", Info, "eip7702.clear"),
+    (
+        "eip7702_delegation_any_chain",
+        Critical,
+        "eip7702.delegation",
+    ),
+    ("eth_transfer", Info, "tx.eth_value"),
+    ("increase_allowance_unknown", High, "approval.unlimited"),
+    ("permit_dai_allowed", Critical, "permit.approval"),
+    ("permit_unlimited_unknown", Critical, "permit.approval"),
+    ("permit2_batch_unknown", Critical, "permit2.approval"),
+    ("permit2_single_uniswap", Low, "permit2.approval"),
+    ("personal_sign_hash", High, "sign.blind_hash"),
+    ("personal_sign_text", Info, "sign.text"),
+    ("safe_multisend_hidden_approve", High, "approval.unlimited"),
+    ("seaport_listing", Info, "seaport.listing"),
+    ("seaport_zero_price", Critical, "seaport.zero_payment"),
+    ("set_approval_for_all_opensea", Low, "nft.approval_for_all"),
+    ("set_approval_for_all_unknown", High, "nft.approval_for_all"),
+    ("unknown_function", Low, "tx.unknown_function"),
 ];
 
 fn load(name: &str) -> Value {
@@ -34,9 +39,11 @@ fn load(name: &str) -> Value {
 
 #[test]
 fn fixtures_have_expected_verdicts() {
-    for (name, want) in CASES {
+    for (name, want, code) in CASES {
         let r = analyze(&load(name)).unwrap();
         assert_eq!(r.verdict(), *want, "{name}: {:#?}", r.findings);
+        let top = r.top().unwrap();
+        assert_eq!(top.code, *code, "{name}");
     }
 }
 
@@ -164,7 +171,7 @@ fn eip712_hashes_match_the_spec_example() {
 
 #[test]
 fn every_typed_data_fixture_gets_hashes() {
-    for (name, _) in CASES {
+    for (name, _, _) in CASES {
         let req = load(name);
         if req["method"]
             .as_str()
@@ -174,4 +181,13 @@ fn every_typed_data_fixture_gets_hashes() {
             assert!(analyze(&req).unwrap().hashes.is_some(), "{name}");
         }
     }
+}
+
+#[test]
+fn approvals_name_the_spender_as_counterparty() {
+    let r = analyze(&load("approve_unlimited_unknown")).unwrap();
+    let spender: alloy_primitives::Address = "0x9d6c4a1e3b7f02a8c5e1d94b6a3f70c2e8b15d47"
+        .parse()
+        .unwrap();
+    assert_eq!(r.findings[0].counterparty, Some(spender));
 }

@@ -1,6 +1,6 @@
 //! Findings, severities and the report returned by [`crate::analyze`].
 
-use alloy_primitives::B256;
+use alloy_primitives::{Address, B256};
 use serde_json::{Value, json};
 use std::fmt;
 
@@ -27,8 +27,12 @@ impl fmt::Display for Severity {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Finding {
+    /// Stable identifier such as `approval.unlimited`, for tooling and metrics.
+    pub code: &'static str,
     pub severity: Severity,
     pub message: String,
+    /// The address that gains power or receives value, when there is one.
+    pub counterparty: Option<Address>,
 }
 
 #[derive(Debug, Default)]
@@ -58,6 +62,12 @@ impl Report {
             .unwrap_or(Severity::Info)
     }
 
+    /// The first finding with the highest severity, the one to show a user first.
+    pub fn top(&self) -> Option<&Finding> {
+        let verdict = self.verdict();
+        self.findings.iter().find(|f| f.severity == verdict)
+    }
+
     pub fn to_json(&self) -> Value {
         json!({
             "verdict": self.verdict().to_string(),
@@ -65,15 +75,47 @@ impl Report {
                 "signing": h.signing, "domain": h.domain, "message": h.message,
             })),
             "findings": self.findings.iter()
-                .map(|f| json!({"severity": f.severity.to_string(), "message": f.message}))
+                .map(|f| json!({
+                    "code": f.code,
+                    "severity": f.severity.to_string(),
+                    "message": f.message,
+                    "counterparty": f.counterparty,
+                }))
                 .collect::<Vec<_>>(),
         })
     }
 
-    pub(crate) fn add(&mut self, severity: Severity, message: impl Into<String>) {
+    pub(crate) fn add(
+        &mut self,
+        code: &'static str,
+        severity: Severity,
+        message: impl Into<String>,
+    ) {
+        self.push(code, severity, None, message.into());
+    }
+
+    pub(crate) fn add_with(
+        &mut self,
+        code: &'static str,
+        counterparty: impl Into<Option<Address>>,
+        severity: Severity,
+        message: impl Into<String>,
+    ) {
+        self.push(code, severity, counterparty.into(), message.into());
+    }
+
+    fn push(
+        &mut self,
+        code: &'static str,
+        severity: Severity,
+        counterparty: Option<Address>,
+        message: String,
+    ) {
         self.findings.push(Finding {
+            code,
             severity,
-            message: message.into(),
+            message,
+            counterparty,
         });
     }
 }

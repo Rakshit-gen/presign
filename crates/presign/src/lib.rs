@@ -50,6 +50,7 @@ pub fn analyze(req: &Value) -> Result<Report, String> {
             }
             if to.is_none() {
                 r.add(
+                    "tx.deploy",
                     Severity::Medium,
                     "deploys a new contract; its code is not checked",
                 );
@@ -72,6 +73,7 @@ pub fn analyze(req: &Value) -> Result<Report, String> {
             match typed::eip712_hashes(&td) {
                 Ok(h) => r.hashes = Some(h),
                 Err(e) => r.add(
+                    "typed.mismatch",
                     Severity::High,
                     format!(
                         "typed data does not match its own type definitions ({e}); \
@@ -82,6 +84,7 @@ pub fn analyze(req: &Value) -> Result<Report, String> {
             typed::typed(&mut r, &td);
         }
         "eth_sign" => r.add(
+            "sign.eth_sign",
             Severity::Critical,
             "eth_sign signs a raw hash you cannot read. That hash can be a valid \
              signature for a transaction that moves everything you own.",

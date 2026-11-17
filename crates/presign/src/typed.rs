@@ -41,10 +41,15 @@ pub(crate) fn typed(r: &mut Report, td: &Value) {
                 (Some(to), Some(value), Some(data), Some(op)) => {
                     safe_tx(r, to, value, &data, op, 0)
                 }
-                _ => r.add(Severity::High, "SafeTx message is malformed"),
+                _ => r.add(
+                    "safe.malformed",
+                    Severity::High,
+                    "SafeTx message is malformed",
+                ),
             }
         }
         _ => r.add(
+            "typed.unrecognized",
             Severity::Info,
             format!("typed message {primary} from {name:?} matches no known risky type"),
         ),
@@ -53,14 +58,24 @@ pub(crate) fn typed(r: &mut Report, td: &Value) {
 
 fn permit(r: &mut Report, token: Option<Address>, m: &Value) {
     let Some(spender) = parse_addr(&m["spender"]) else {
-        return r.add(Severity::High, "Permit message has no readable spender");
+        return r.add(
+            "permit.malformed",
+            Severity::High,
+            "Permit message has no readable spender",
+        );
     };
     // DAI-style permits carry `allowed: true` instead of an amount, and grant the maximum.
     let amt = match (&m["allowed"], parse_num(&m["value"])) {
         (Value::Bool(true), _) => U256::MAX,
         (Value::Bool(false), _) => U256::ZERO,
         (_, Some(v)) => v,
-        _ => return r.add(Severity::High, "Permit message has no readable amount"),
+        _ => {
+            return r.add(
+                "permit.malformed",
+                Severity::High,
+                "Permit message has no readable amount",
+            );
+        }
     };
     let sev = match (known(spender).is_some(), unlimited(amt)) {
         (true, true) => Severity::Medium,
@@ -69,7 +84,9 @@ fn permit(r: &mut Report, token: Option<Address>, m: &Value) {
         (false, false) => Severity::High,
     };
     let token = token.map_or_else(|| "an unknown token".into(), |t| format!("token {t}"));
-    r.add(
+    r.add_with(
+        "permit.approval",
+        spender,
         sev,
         format!(
             "gasless approval: lets {} take {} of {token}. No transaction is sent, so \
@@ -91,10 +108,18 @@ fn permit2(r: &mut Report, primary: &str, m: &Value) {
         .map(|it| Some((parse_addr(&it["token"])?, parse_num(&it["amount"])?)))
         .collect();
     let (Some(spender), Some(tokens)) = (parse_addr(&m["spender"]), tokens) else {
-        return r.add(Severity::High, format!("Permit2 {primary} is malformed"));
+        return r.add(
+            "permit2.malformed",
+            Severity::High,
+            format!("Permit2 {primary} is malformed"),
+        );
     };
     if tokens.is_empty() {
-        return r.add(Severity::High, format!("Permit2 {primary} names no tokens"));
+        return r.add(
+            "permit2.malformed",
+            Severity::High,
+            format!("Permit2 {primary} names no tokens"),
+        );
     }
     let any_unlimited = tokens.iter().any(|(_, a)| unlimited(*a));
     let sev = match (known(spender).is_some(), tokens.len() > 1 || any_unlimited) {
@@ -107,7 +132,9 @@ fn permit2(r: &mut Report, primary: &str, m: &Value) {
         .map(|(t, a)| format!("{} of {t}", amount(*a)))
         .collect::<Vec<_>>()
         .join(", ");
-    r.add(
+    r.add_with(
+        "permit2.approval",
+        spender,
         sev,
         format!(
             "Permit2 {primary}: lets {} take {list}. No transaction is sent, so nothing \
@@ -123,7 +150,11 @@ fn seaport(r: &mut Report, m: &Value) {
         m["offer"].as_array(),
         m["consideration"].as_array(),
     ) else {
-        return r.add(Severity::High, "Seaport order is malformed");
+        return r.add(
+            "seaport.malformed",
+            Severity::High,
+            "Seaport order is malformed",
+        );
     };
     let paid_to_you = consideration
         .iter()
@@ -132,11 +163,13 @@ fn seaport(r: &mut Report, m: &Value) {
         .fold(U256::ZERO, |acc, x| acc.saturating_add(x));
     if offer.is_empty() {
         r.add(
+            "seaport.empty_offer",
             Severity::Info,
             "Seaport order offers nothing from your wallet",
         );
     } else if paid_to_you.is_zero() {
         r.add(
+            "seaport.zero_payment",
             Severity::Critical,
             format!(
                 "Seaport order hands over {} item(s) you own and pays you nothing. \
@@ -146,6 +179,7 @@ fn seaport(r: &mut Report, m: &Value) {
         );
     } else {
         r.add(
+            "seaport.listing",
             Severity::Info,
             format!(
                 "Seaport listing of {} item(s) with payment going back to you",

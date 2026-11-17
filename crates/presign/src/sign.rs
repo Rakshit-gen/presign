@@ -19,6 +19,7 @@ pub(crate) fn authorizations(r: &mut Report, list: &Value) -> Result<(), String>
         let chain = parse_num(&auth["chainId"]).ok_or("authorization has no valid \"chainId\"")?;
         if target.is_zero() {
             r.add(
+                "eip7702.clear",
                 Severity::Info,
                 "clears the EIP-7702 delegation on your account",
             );
@@ -29,7 +30,9 @@ pub(crate) fn authorizations(r: &mut Report, list: &Value) -> Result<(), String>
         } else {
             format!("on chain {chain}")
         };
-        r.add(
+        r.add_with(
+            "eip7702.delegation",
+            target,
             Severity::Critical,
             format!(
                 "EIP-7702 delegation: hands your account to the code at {} {scope}. \
@@ -49,15 +52,18 @@ pub(crate) fn personal(r: &mut Report, msg: &str) {
     };
     match String::from_utf8(bytes) {
         Ok(text) if !text.chars().any(|c| c.is_control() && !c.is_whitespace()) => r.add(
+            "sign.text",
             Severity::Info,
             format!("signs a readable text message: {text:?}"),
         ),
         Ok(_) | Err(_) if msg.len() == 66 => r.add(
+            "sign.blind_hash",
             Severity::High,
             "signs 32 unreadable bytes, which is the size of a transaction hash. \
              Treat this like a blind signature.",
         ),
         _ => r.add(
+            "sign.binary",
             Severity::Medium,
             "signs binary data that is not readable text",
         ),

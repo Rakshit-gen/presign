@@ -10,12 +10,15 @@ pub(crate) fn safe_tx(r: &mut Report, to: Address, value: U256, data: &[u8], op:
         0 => call(r, Some(to), data, value, depth + 1),
         1 if known(to).is_some_and(|n| n.starts_with("Safe MultiSendCallOnly")) => {
             r.add(
+                "safe.multisend",
                 Severity::Info,
                 format!("batch of calls through {}", who(to)),
             );
             call(r, Some(to), data, value, depth + 1);
         }
-        1 => r.add(
+        1 => r.add_with(
+            "safe.delegatecall",
+            to,
             Severity::Critical,
             format!(
                 "delegatecall to {}: that contract's code runs as your Safe and can \
@@ -24,7 +27,11 @@ pub(crate) fn safe_tx(r: &mut Report, to: Address, value: U256, data: &[u8], op:
                 who(to)
             ),
         ),
-        _ => r.add(Severity::High, format!("unknown Safe operation type {op}")),
+        _ => r.add(
+            "safe.unknown_operation",
+            Severity::High,
+            format!("unknown Safe operation type {op}"),
+        ),
     }
 }
 
@@ -32,7 +39,11 @@ pub(crate) fn safe_tx(r: &mut Report, to: Address, value: U256, data: &[u8], op:
 pub(crate) fn multisend(r: &mut Report, mut buf: &[u8], depth: u8) {
     while !buf.is_empty() {
         if buf.len() < 85 {
-            r.add(Severity::High, "MultiSend batch is truncated");
+            r.add(
+                "safe.malformed",
+                Severity::High,
+                "MultiSend batch is truncated",
+            );
             return;
         }
         let op = buf[0];
@@ -44,7 +55,11 @@ pub(crate) fn multisend(r: &mut Report, mut buf: &[u8], depth: u8) {
             .and_then(|l| l.checked_add(85))
             .filter(|&e| e <= buf.len())
         else {
-            r.add(Severity::High, "MultiSend batch has an invalid length");
+            r.add(
+                "safe.malformed",
+                Severity::High,
+                "MultiSend batch has an invalid length",
+            );
             return;
         };
         safe_tx(r, to, value, &buf[85..end], op, depth + 1);

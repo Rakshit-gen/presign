@@ -1,6 +1,7 @@
 mod dataset;
 mod net;
 mod rebuild;
+mod score;
 
 use std::path::PathBuf;
 use std::process::ExitCode;
@@ -8,10 +9,13 @@ use std::process::ExitCode;
 const USAGE: &str = "\
 usage: presign-eval build [--out DIR] [--rpc URL] [--archive-rpc URL] [--drainers N]
                           [--per-drainer N] [--blocks N] [--benign-per-block N] [--seed S]
+       presign-eval score [--data DIR]
 
 build  downloads ScamSniffer's blacklist, samples drainer activity through
        Blockscout and benign activity from recent blocks, and writes
-       DIR/dataset.jsonl and DIR/manifest.json (default DIR: eval/data)";
+       DIR/dataset.jsonl and DIR/manifest.json (default DIR: eval/data)
+score  runs presign over the dataset and writes DIR/results.json plus a
+       Markdown summary on stdout";
 
 struct Args(Vec<String>);
 
@@ -56,6 +60,15 @@ fn run() -> Result<(), String> {
                 &PathBuf::from(args.get("--out").unwrap_or("eval/data")),
                 &opt,
             )
+        }
+        "score" => {
+            let dir = PathBuf::from(args.get("--data").unwrap_or("eval/data"));
+            let samples = score::load(&dir)?;
+            let results = score::score(&samples, presign::analyze);
+            let pretty = serde_json::to_string_pretty(&results).map_err(|e| e.to_string())?;
+            std::fs::write(dir.join("results.json"), pretty).map_err(|e| e.to_string())?;
+            print!("{}", score::markdown(&results));
+            Ok(())
         }
         _ => Err(USAGE.to_string()),
     }

@@ -1,0 +1,16 @@
+[package]
+name = "presign-eval"
+description = "Builds a labeled dataset of real wallet requests and scores presign on it"
+publish = false
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+presign.workspace = true
+alloy-primitives.workspace = true
+alloy-sol-types.workspace = true
+serde_json.workspace = true
+ureq = { version = "3.5.2", features = ["json"] }

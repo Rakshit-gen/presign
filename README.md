@@ -96,17 +96,17 @@ if report.verdict() >= presign::Severity::High { /* block or warn */ }
 | EIP-2612 `Permit`, DAI `Permit` | gasless approval to an unknown spender | high, critical if unlimited |
 | Permit2 `PermitSingle`, `PermitBatch`, `PermitTransferFrom` | gasless approval to an unknown spender | high, critical if unlimited or multi-token |
 | Seaport `OrderComponents` | items offered with no payment back to the offerer | critical |
-| Safe `execTransaction`, `SafeTx` typed data | `operation = 1` delegatecall to anything but MultiSendCallOnly | critical |
+| Safe `execTransaction`, `SafeTx` typed data | `operation = 1` delegatecall to anything but Safe's MultiSend contracts | critical |
 | Safe `multiSend` batch | each inner call is decoded and checked | per call |
 | Safe self-calls | owner, threshold, module, guard or fallback handler changes | high, module is critical |
-| EIP-7702 `authorizationList` | delegating your account to contract code | critical |
+| EIP-7702 `authorizationList` | delegating your account to contract code | critical, medium for the audited implementations ethereum.org lists |
 | `eth_sign` | raw hash signature | critical |
 | `personal_sign` | 32 unreadable bytes | high |
 | typed data | fields that do not match the declared types | high |
 
 Spenders on a short allowlist of verified mainnet contracts (Permit2, Uniswap
 Universal Router, 1inch v6, Seaport 1.6, the OpenSea conduit, Safe
-MultiSendCallOnly) drop to low. The list is in `crates/presign/src/known.rs`.
+MultiSend) drop to low. The list is in `crates/presign/src/known.rs`.
 
 ## Measured vs Claimed
 
@@ -114,8 +114,9 @@ MultiSendCallOnly) drop to low. The list is in `crates/presign/src/known.rs`.
 |---|---|---|---|
 | EIP-712 hashes are correct | matches spec vector | `eip712_hashes_match_the_spec_example` test, Mail example from EIP-712 | 2026-11-17 |
 | Verdicts on known patterns | 22 of 22 fixtures | `cargo test`; fixtures in `crates/presign/tests/fixtures` are built by hand, not captured from live attacks | 2026-11-17 |
-| Recall on real drainer requests | not measured yet | | |
-| False positive rate on normal requests | not measured yet | | |
+| Recall on real drainer requests | 75.7% offline, 79.6% with `--rpc` (178 and 187 of 235); 93.2% and 97.9% excluding contract calls to the drainer | holdout of 300 ScamSniffer-listed drainers not used for any tuning; 95% CIs and method in [docs/eval.md](docs/eval.md) | 2026-11-17 |
+| False positive rate on normal requests | 3.9% (22/568); 0.6% (3/502) on ordinary transactions | benign requests from one hour of mainnet blocks, same holdout | 2026-11-17 |
+| In-process latency per request | p50 0.7 to 1.0 µs, p99 57 to 120 µs | `presign-eval score`, Apple M4, single thread; p99 varied across runs | 2026-11-17 |
 | Server throughput, offline | 159k req/s (Safe tx), 106k req/s (EIP-712 permit), 0 failed | local, synthetic: Apple M4, 10 cores, release build, `ab -k -n 100000 -c 32`, after a 5000-request warm-up; see [docs/benchmarks.md](docs/benchmarks.md) | 2026-11-17 |
 | Server latency, offline | client p50 under 1 ms, p99 1 ms; handler mean 27 µs, 97.3% under 100 µs, 99.7% under 250 µs | same runs; client side from `ab` (whole ms only), handler side from the `/metrics` histogram over all 210,000 requests | 2026-11-17 |
 
@@ -131,7 +132,9 @@ and anything nested deeper is reported as high rather than passed.
 
 - No simulation. It reads intent from the request but cannot see what an
   unknown contract will do when called. An unknown function selector is
-  reported as low.
+  reported as low, and this is where most measured misses are.
+- A permit to any unknown spender is high, which is most of the measured
+  false alarms. See [docs/eval.md](docs/eval.md) for the breakdown.
 - The allowlist covers Ethereum mainnet addresses only.
 - `approve(address,uint256)` has the same selector for ERC-20 and ERC-721, so
   an NFT approval shows its token id as an amount.

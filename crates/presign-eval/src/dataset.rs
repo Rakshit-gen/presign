@@ -54,6 +54,9 @@ pub struct Options {
     pub blocks: u64,
     pub benign_per_block: usize,
     pub seed: String,
+    /// Skip this many addresses of the seeded ranking, so a holdout set can
+    /// take the next slice without overlapping an earlier build.
+    pub offset: usize,
 }
 
 /// Deterministic shuffle key: the same seed always picks the same sample.
@@ -131,7 +134,11 @@ pub fn build(dir: &Path, opt: &Options) -> Result<(), String> {
 
     let mut sample = list.clone();
     sample.sort_by_key(|a| rank(&opt.seed, a.as_slice()));
-    sample.truncate(opt.drainers);
+    let sample: Vec<Address> = sample
+        .into_iter()
+        .skip(opt.offset)
+        .take(opt.drainers)
+        .collect();
 
     let file = File::create(dir.join("dataset.jsonl")).map_err(|e| e.to_string())?;
     let mut w = Writer {
@@ -178,6 +185,7 @@ pub fn build(dir: &Path, opt: &Options) -> Result<(), String> {
         "blocks": [first, head],
         "benign_per_block": opt.benign_per_block,
         "seed": opt.seed,
+        "drainer_offset": opt.offset,
         "skipped_drainers": skipped_drainers,
         "skipped_blocks": skipped_blocks,
         "counts": w.counts,
@@ -189,6 +197,30 @@ pub fn build(dir: &Path, opt: &Options) -> Result<(), String> {
         serde_json::to_string_pretty(&manifest["counts"]).unwrap_or_default()
     );
     Ok(())
+}
+
+/// [`signature_request`] for transactions a drainer sent or benefited from,
+/// minus Seaport bids. A bid offers only fungible tokens for an NFT; when a
+/// drainer fills one it is selling a stolen NFT to an honest bidder, so the
+/// signer is not a victim.
+fn victim_signature(
+    sender: Address,
+    to: Address,
+    input: &[u8],
+    token_name: &str,
+) -> Option<(&'static str, Value)> {
+    let (kind, req) = signature_request(sender, to, input, token_name)?;
+    if kind == "seaport_order" {
+        let typed: Value = serde_json::from_str(req["params"][1].as_str()?).ok()?;
+        let offers_nft = typed["message"]["offer"]
+            .as_array()?
+            .iter()
+            .any(|i| i["itemType"].as_u64().is_some_and(|t| t >= 2));
+        if !offers_nft {
+            return None;
+        }
+    }
+    Some((kind, req))
 }
 
 fn drainer_samples(
@@ -296,7 +328,7 @@ fn drainer_samples(
             w.push("drainer", "victim_approval", hash, req)?;
             taken += 1;
         } else if let Ok(bytes) = hex::decode(input)
-            && let Some((kind, req)) = signature_request(from, to, &bytes, "Token")
+            && let Some((kind, req)) = victim_signature(from, to, &bytes, "Token")
         {
             w.push("drainer", kind, hash, req)?;
             taken += 1;
@@ -319,7 +351,7 @@ fn drainer_samples(
             continue;
         };
         let name = tx["to"]["name"].as_str().unwrap_or("Token");
-        if let Some((kind, req)) = signature_request(drainer, to, &bytes, name) {
+        if let Some((kind, req)) = victim_signature(drainer, to, &bytes, name) {
             w.push(
                 "drainer",
                 kind,

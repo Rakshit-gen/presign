@@ -11,6 +11,7 @@ use std::time::Duration;
 const USAGE: &str = "\
 usage: presign-eval build [--out DIR] [--rpc URL] [--archive-rpc URL] [--drainers N]
                           [--per-drainer N] [--blocks N] [--benign-per-block N] [--seed S]
+                          [--offset N]
        presign-eval score [--data DIR] [--rpc URL]
 
 build  downloads ScamSniffer's blacklist, samples drainer activity through
@@ -59,6 +60,7 @@ fn run() -> Result<(), String> {
                 blocks: args.num("--blocks", 300)?,
                 benign_per_block: args.num("--benign-per-block", 3)?,
                 seed: args.get("--seed").unwrap_or("presign-eval-1").to_string(),
+                offset: args.num("--offset", 0)?,
             };
             dataset::build(
                 &PathBuf::from(args.get("--out").unwrap_or("eval/data")),

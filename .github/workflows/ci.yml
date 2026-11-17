@@ -25,3 +25,17 @@ jobs:
       - uses: dtolnay/rust-toolchain@1.90
       - uses: Swatinem/rust-cache@v2
       - run: cargo check --workspace --all-targets --all-features --locked
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: docker build -t presign-server .
+      - name: smoke test
+        run: |
+          docker run -d --name ps -p 8080:8080 presign-server
+          for i in $(seq 20); do curl -fs localhost:8080/healthz && break; sleep 1; done
+          curl -fs -X POST localhost:8080/v1/analyze \
+            --data @crates/presign/tests/fixtures/bybit_exec_transaction.json \
+            | grep -q '"verdict":"critical"'
+          docker rm -f ps

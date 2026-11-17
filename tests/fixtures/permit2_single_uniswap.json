@@ -1,0 +1,7 @@
+{
+  "method": "eth_signTypedData_v4",
+  "params": [
+    "0x5b38da6a701c568545dcfcb03fcb875f56beddc4",
+    "{\"types\": {\"EIP712Domain\": [{\"name\": \"name\", \"type\": \"string\"}, {\"name\": \"chainId\", \"type\": \"uint256\"}, {\"name\": \"verifyingContract\", \"type\": \"address\"}], \"PermitSingle\": [{\"name\": \"details\", \"type\": \"PermitDetails\"}, {\"name\": \"spender\", \"type\": \"address\"}, {\"name\": \"sigDeadline\", \"type\": \"uint256\"}], \"PermitDetails\": [{\"name\": \"token\", \"type\": \"address\"}, {\"name\": \"amount\", \"type\": \"uint160\"}, {\"name\": \"expiration\", \"type\": \"uint48\"}, {\"name\": \"nonce\", \"type\": \"uint48\"}]}, \"primaryType\": \"PermitSingle\", \"domain\": {\"name\": \"Permit2\", \"chainId\": 1, \"verifyingContract\": \"0x000000000022d473030f116ddee9f6b43ac78ba3\"}, \"message\": {\"details\": {\"token\": \"0xa0b86991c6218b36c1d19d4a2e9eb0ce3606eb48\", \"amount\": \"1461501637330902918203684832716283019655932542975\", \"expiration\": \"1893456000\", \"nonce\": \"3\"}, \"spender\": \"0x66a9893cc07d91d95644aedd05d03f95e1dba8af\", \"sigDeadline\": \"1893456000\"}}"
+  ]
+}

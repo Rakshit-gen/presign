@@ -1,0 +1,19 @@
+{
+  "method": "eth_sendTransaction",
+  "params": [
+    {
+      "from": "0x5b38da6a701c568545dcfcb03fcb875f56beddc4",
+      "to": "0x5b38da6a701c568545dcfcb03fcb875f56beddc4",
+      "data": "0x",
+      "value": "0x0",
+      "type": "0x4",
+      "authorizationList": [
+        {
+          "chainId": "0x1",
+          "address": "0x0000000000000000000000000000000000000000",
+          "nonce": "0x3"
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,11 @@
+{
+  "method": "eth_sendTransaction",
+  "params": [
+    {
+      "from": "0x5b38da6a701c568545dcfcb03fcb875f56beddc4",
+      "to": "0x9d6c4a1e3b7f02a8c5e1d94b6a3f70c2e8b15d47",
+      "data": "0x",
+      "value": "0xde0b6b3a7640000"
+    }
+  ]
+}

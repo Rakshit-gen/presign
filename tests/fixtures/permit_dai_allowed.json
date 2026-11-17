@@ -1,0 +1,7 @@
+{
+  "method": "eth_signTypedData_v4",
+  "params": [
+    "0x5b38da6a701c568545dcfcb03fcb875f56beddc4",
+    "{\"types\": {\"EIP712Domain\": [{\"name\": \"name\", \"type\": \"string\"}, {\"name\": \"version\", \"type\": \"string\"}, {\"name\": \"chainId\", \"type\": \"uint256\"}, {\"name\": \"verifyingContract\", \"type\": \"address\"}], \"Permit\": [{\"name\": \"holder\", \"type\": \"address\"}, {\"name\": \"spender\", \"type\": \"address\"}, {\"name\": \"nonce\", \"type\": \"uint256\"}, {\"name\": \"expiry\", \"type\": \"uint256\"}, {\"name\": \"allowed\", \"type\": \"bool\"}]}, \"primaryType\": \"Permit\", \"domain\": {\"name\": \"Dai Stablecoin\", \"version\": \"1\", \"chainId\": 1, \"verifyingContract\": \"0x6b175474e89094c44da98b954eedeac495271d0f\"}, \"message\": {\"holder\": \"0x5b38da6a701c568545dcfcb03fcb875f56beddc4\", \"spender\": \"0x9d6c4a1e3b7f02a8c5e1d94b6a3f70c2e8b15d47\", \"nonce\": \"0\", \"expiry\": \"1893456000\", \"allowed\": true}}"
+  ]
+}

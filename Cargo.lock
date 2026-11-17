@@ -1751,6 +1751,7 @@ dependencies = [
  "alloy-primitives",
  "alloy-sol-types",
  "serde_json",
+ "ureq",
 ]
 
 [[package]]

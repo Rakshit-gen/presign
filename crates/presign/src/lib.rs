@@ -6,6 +6,7 @@
 
 mod calldata;
 mod known;
+pub mod online;
 mod parse;
 mod report;
 mod safe;

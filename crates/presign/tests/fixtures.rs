@@ -241,3 +241,19 @@ fn delegatecall_to_safe_multisend_is_allowed_but_its_calls_are_still_checked() {
     assert_eq!(hidden.verdict(), Critical);
     assert_eq!(hidden.top().unwrap().code, "safe.delegatecall");
 }
+
+#[test]
+fn delegation_to_an_audited_7702_account_is_medium_and_anything_else_critical() {
+    let mut req = load("eip7702_delegation_any_chain");
+    let calibur = "0x000000009B1D0aF20D8C6d0A44e162d11F9b8f00";
+    req["params"][0]["authorizationList"][0]["address"] = json!(calibur);
+    req["params"][0]["authorizationList"][0]["chainId"] = json!("0x1");
+    let r = analyze(&req).unwrap();
+    assert_eq!(r.verdict(), Medium, "{:?}", r.findings);
+    assert_eq!(r.top().unwrap().code, "eip7702.audited_delegate");
+    assert!(r.top().unwrap().message.contains("Uniswap Calibur"));
+
+    req["params"][0]["authorizationList"][0]["address"] =
+        json!("0xd6CEDDe84be40893d153Be9d467CD6aD37875b28");
+    assert_eq!(analyze(&req).unwrap().verdict(), Critical);
+}

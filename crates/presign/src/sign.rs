@@ -1,6 +1,6 @@
 //! Raw signing methods and EIP-7702 authorizations.
 
-use crate::known::who;
+use crate::known::{delegate, who};
 use crate::parse::{parse_addr, parse_num};
 use crate::report::{Report, Severity};
 use alloy_primitives::hex;
@@ -30,6 +30,19 @@ pub(crate) fn authorizations(r: &mut Report, list: &Value) -> Result<(), String>
         } else {
             format!("on chain {chain}")
         };
+        if let Some(name) = delegate(target) {
+            r.add_with(
+                "eip7702.audited_delegate",
+                target,
+                Severity::Medium,
+                format!(
+                    "EIP-7702 delegation to {name} ({target}) {scope}, an audited \
+                     smart-account implementation. Approve only if you turned on smart \
+                     account features in your own wallet; a site should not ask for this."
+                ),
+            );
+            continue;
+        }
         r.add_with(
             "eip7702.delegation",
             target,

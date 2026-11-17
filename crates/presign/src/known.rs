@@ -72,3 +72,38 @@ pub(crate) fn who(a: Address) -> String {
         None => format!("{a} (unknown address)"),
     }
 }
+
+/// Audited EIP-7702 account implementations, as listed by ethereum.org
+/// (roadmap/pectra/7702). Delegating to one of these is how wallets turn on
+/// smart-account features; delegating to anything else is how drainers take
+/// over an account.
+pub(crate) const DELEGATES: &[(Address, &str)] = &[
+    (
+        address!("000000009B1D0aF20D8C6d0A44e162d11F9b8f00"),
+        "Uniswap Calibur",
+    ),
+    (
+        address!("69007702764179f14F51cdce752f4f775d74E139"),
+        "Alchemy SemiModularAccount7702",
+    ),
+    (
+        address!("5A7FC11397E9a8AD41BF10bf13F22B0a63f96f6d"),
+        "Ambire AmbireAccount7702",
+    ),
+    (
+        address!("63c0c19a282a1b52b07dd5a65b58948a07dae32b"),
+        "MetaMask EIP7702StatelessDeleGator",
+    ),
+    (
+        address!("4Cd241E8d1510e30b2076397afc7508Ae59C66c9"),
+        "eth-infinitism Simple7702Account",
+    ),
+    (
+        address!("17c11FDdADac2b341F2455aFe988fec4c3ba26e3"),
+        "Luganodes Pectra batch contract",
+    ),
+];
+
+pub(crate) fn delegate(a: Address) -> Option<&'static str> {
+    DELEGATES.iter().find(|(k, _)| *k == a).map(|(_, n)| *n)
+}

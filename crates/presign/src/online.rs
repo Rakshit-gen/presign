@@ -106,6 +106,7 @@ mod rpc {
     use std::time::Duration;
 
     /// [`ChainView`] over Ethereum JSON-RPC.
+    #[derive(Clone)]
     pub struct Rpc {
         url: String,
         agent: ureq::Agent,

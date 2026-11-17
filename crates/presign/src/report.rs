@@ -35,7 +35,7 @@ pub struct Finding {
     pub counterparty: Option<Address>,
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct Report {
     pub findings: Vec<Finding>,
     /// Set for typed-data requests: the hashes a hardware wallet displays.

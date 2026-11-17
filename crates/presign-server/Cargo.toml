@@ -1,0 +1,17 @@
+[package]
+name = "presign-server"
+description = "HTTP API for presign"
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+axum = "0.8.9"
+presign = { workspace = true, features = ["rpc"] }
+serde_json.workspace = true
+tokio = { version = "1.54.1", features = ["macros", "net", "rt-multi-thread", "signal", "time"] }
+
+[dev-dependencies]
+ureq.workspace = true

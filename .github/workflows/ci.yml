@@ -39,3 +39,17 @@ jobs:
             --data @crates/presign/tests/fixtures/bybit_exec_transaction.json \
             | grep -q '"verdict":"critical"'
           docker rm -f ps
+
+  wasm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: wasm32-unknown-unknown
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: extension/build.sh
+      - run: node --test extension/test.mjs

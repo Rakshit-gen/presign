@@ -20,6 +20,7 @@ the code at an approval's spender address.
 | The hardware wallet screen | Yes | It is the one display an attacker who owns the browser cannot change. The hash check only works if someone reads it. |
 | The allowlist in `known.rs` | Yes | Each address was checked on Etherscan. A wrong entry would downgrade a real drain to low, so entries are few and mainnet only. |
 | The RPC node | Partly | See below. |
+| The browser extension's page hook | No | It runs inside the page it is guarding. It stops drainer kits that call the wallet normally; a script aimed at presign itself can bypass it (see `extension/README.md`). |
 | The machine running presign | Yes | Malware on that machine can change presign's output too. Running it somewhere other than the signing browser (a CLI on another host, the server behind the wallet backend) is what keeps it independent. |
 
 ## RPC node

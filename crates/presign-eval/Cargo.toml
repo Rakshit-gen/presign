@@ -9,7 +9,7 @@ license.workspace = true
 repository.workspace = true
 
 [dependencies]
-presign.workspace = true
+presign = { workspace = true, features = ["rpc"] }
 alloy-primitives.workspace = true
 alloy-sol-types.workspace = true
 serde_json.workspace = true

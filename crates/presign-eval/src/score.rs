@@ -9,7 +9,8 @@ use std::time::Instant;
 
 /// A request counts as flagged when its verdict reaches this severity.
 pub const THRESHOLD: Severity = Severity::High;
-const TIMING_PASSES: usize = 5;
+/// Timed reruns per request for the latency figures.
+pub const TIMING_PASSES: usize = 5;
 
 pub struct Sample {
     pub label: String,
@@ -59,12 +60,19 @@ struct Tally {
     flagged: usize,
 }
 
-pub fn score(samples: &[Sample], mut judge: impl FnMut(&Value) -> Result<Report, String>) -> Value {
+/// Scores `judge` on every sample. Latency is measured over `timing_passes`
+/// extra calls per request; pass 0 when the judge has side effects worth
+/// avoiding, such as network lookups.
+pub fn score(
+    samples: &[Sample],
+    timing_passes: usize,
+    mut judge: impl FnMut(&Value) -> Result<Report, String>,
+) -> Value {
     let mut by_kind: BTreeMap<(String, String), Tally> = BTreeMap::new();
     let mut misses: BTreeMap<String, usize> = BTreeMap::new();
     let mut false_alarms: BTreeMap<String, usize> = BTreeMap::new();
     let mut errors = 0;
-    let mut latencies_us = Vec::with_capacity(samples.len() * TIMING_PASSES);
+    let mut latencies_us = Vec::with_capacity(samples.len() * timing_passes);
 
     for s in samples {
         let report = match judge(&s.request) {
@@ -74,7 +82,7 @@ pub fn score(samples: &[Sample], mut judge: impl FnMut(&Value) -> Result<Report,
                 continue;
             }
         };
-        for _ in 0..TIMING_PASSES {
+        for _ in 0..timing_passes {
             let t = Instant::now();
             let _ = judge(&s.request);
             latencies_us.push(t.elapsed().as_secs_f64() * 1e6);
@@ -111,12 +119,12 @@ pub fn score(samples: &[Sample], mut judge: impl FnMut(&Value) -> Result<Report,
         "recall": rate(caught, drainers),
         "false_positive_rate": rate(flagged_benign, benign),
         "errors": errors,
-        "latency_us": {
+        "latency_us": if latencies_us.is_empty() { Value::Null } else { json!({
             "p50": percentile(&latencies_us, 0.50),
             "p99": percentile(&latencies_us, 0.99),
             "max": latencies_us.last().copied().unwrap_or_default(),
             "calls": latencies_us.len(),
-        },
+        })},
         "by_kind": by_kind.iter().map(|((l, k), t)| json!({
             "label": l, "kind": k, "n": t.n, "flagged": t.flagged,
         })).collect::<Vec<_>>(),
@@ -133,7 +141,7 @@ pub fn markdown(r: &Value) -> String {
         "| Metric | Value | 95% CI |\n|---|---|---|\n\
          | Recall (drainer requests flagged {th}+) | {} ({}/{}) | {} |\n\
          | False positive rate (benign flagged {th}+) | {} ({}/{}) | {} |\n\
-         | Latency p50 / p99 per request | {:.1} / {:.1} µs | |\n\n",
+         {}\n",
         pct(&r["recall"]["rate"]),
         r["recall"]["k"],
         r["recall"]["n"],
@@ -142,8 +150,14 @@ pub fn markdown(r: &Value) -> String {
         r["false_positive_rate"]["k"],
         r["false_positive_rate"]["n"],
         ci(&r["false_positive_rate"]["ci95"]),
-        r["latency_us"]["p50"].as_f64().unwrap_or_default(),
-        r["latency_us"]["p99"].as_f64().unwrap_or_default(),
+        match r["latency_us"].as_object() {
+            Some(l) => format!(
+                "| Latency p50 / p99 per request | {:.1} / {:.1} µs | |\n",
+                l["p50"].as_f64().unwrap_or_default(),
+                l["p99"].as_f64().unwrap_or_default()
+            ),
+            None => String::new(),
+        },
         th = r["threshold"].as_str().unwrap_or_default(),
     );
     s += "| Label | Kind | Samples | Flagged |\n|---|---|---|---|\n";
@@ -194,10 +208,12 @@ mod tests {
             sample("drainer", "personal_sign"),
             sample("benign", "personal_sign"),
         ];
-        let r = score(&samples, presign::analyze);
+        let r = score(&samples, TIMING_PASSES, presign::analyze);
         assert_eq!(r["recall"]["k"], 1);
         assert_eq!(r["recall"]["n"], 2);
         assert_eq!(r["false_positive_rate"]["k"], 0);
         assert_eq!(r["missed_drainers_by_top_code"]["sign.binary"], 1);
+        assert_eq!(r["latency_us"]["calls"], 3 * TIMING_PASSES);
+        assert!(score(&samples, 0, presign::analyze)["latency_us"].is_null());
     }
 }

@@ -3,19 +3,23 @@ mod net;
 mod rebuild;
 mod score;
 
+use presign::online::{Rpc, enrich};
 use std::path::PathBuf;
 use std::process::ExitCode;
+use std::time::Duration;
 
 const USAGE: &str = "\
 usage: presign-eval build [--out DIR] [--rpc URL] [--archive-rpc URL] [--drainers N]
                           [--per-drainer N] [--blocks N] [--benign-per-block N] [--seed S]
-       presign-eval score [--data DIR]
+       presign-eval score [--data DIR] [--rpc URL]
 
 build  downloads ScamSniffer's blacklist, samples drainer activity through
        Blockscout and benign activity from recent blocks, and writes
        DIR/dataset.jsonl and DIR/manifest.json (default DIR: eval/data)
 score  runs presign over the dataset and writes DIR/results.json plus a
-       Markdown summary on stdout";
+       Markdown summary on stdout. With --rpc, approval spenders are also
+       checked on-chain and results go to DIR/results-online.json (no latency
+       figures, since those would time the node)";
 
 struct Args(Vec<String>);
 
@@ -64,9 +68,23 @@ fn run() -> Result<(), String> {
         "score" => {
             let dir = PathBuf::from(args.get("--data").unwrap_or("eval/data"));
             let samples = score::load(&dir)?;
-            let results = score::score(&samples, presign::analyze);
+            let (results, out) = match args.get("--rpc") {
+                None => (
+                    score::score(&samples, score::TIMING_PASSES, presign::analyze),
+                    "results.json",
+                ),
+                Some(url) => {
+                    let mut chain = Rpc::new(url, Duration::from_secs(20));
+                    let judge = |req: &serde_json::Value| {
+                        let mut r = presign::analyze(req)?;
+                        enrich(&mut r, &mut chain);
+                        Ok(r)
+                    };
+                    (score::score(&samples, 0, judge), "results-online.json")
+                }
+            };
             let pretty = serde_json::to_string_pretty(&results).map_err(|e| e.to_string())?;
-            std::fs::write(dir.join("results.json"), pretty).map_err(|e| e.to_string())?;
+            std::fs::write(dir.join(out), pretty).map_err(|e| e.to_string())?;
             print!("{}", score::markdown(&results));
             Ok(())
         }

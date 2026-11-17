@@ -13,5 +13,5 @@ name = "presign"
 path = "src/main.rs"
 
 [dependencies]
-presign.workspace = true
+presign = { workspace = true, features = ["rpc"] }
 serde_json.workspace = true

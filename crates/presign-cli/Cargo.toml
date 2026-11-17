@@ -1,0 +1,17 @@
+[package]
+name = "presign-cli"
+description = "Command line front end for presign"
+categories = ["command-line-utilities"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[[bin]]
+name = "presign"
+path = "src/main.rs"
+
+[dependencies]
+presign.workspace = true
+serde_json.workspace = true

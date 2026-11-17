@@ -1,0 +1,16 @@
+[package]
+name = "presign"
+description = "Decodes what a wallet is about to sign and flags drainer patterns"
+keywords = ["ethereum", "wallet", "security", "eip712", "drainer"]
+categories = ["cryptography::cryptocurrencies"]
+version.workspace = true
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+repository.workspace = true
+
+[dependencies]
+alloy-dyn-abi.workspace = true
+alloy-primitives.workspace = true
+alloy-sol-types.workspace = true
+serde_json.workspace = true

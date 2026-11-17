@@ -22,7 +22,7 @@ Installs a static binary into `~/.local/bin` after checking its SHA256 against
 the release. To build from source instead (Rust 1.85+):
 
 ```sh
-cargo install --git https://github.com/Rakshit-gen/presign
+cargo install --git https://github.com/Rakshit-gen/presign presign-cli
 ```
 
 ## Usage
@@ -31,7 +31,7 @@ Input is the EIP-1193 request a dapp passes to `window.ethereum.request`, as a
 file or on stdin.
 
 ```sh
-presign tests/fixtures/bybit_safetx_typed.json
+presign crates/presign/tests/fixtures/bybit_safetx_typed.json
 ```
 
 ```
@@ -76,14 +76,14 @@ if report.verdict() >= presign::Severity::High { /* block or warn */ }
 
 Spenders on a short allowlist of verified mainnet contracts (Permit2, Uniswap
 Universal Router, 1inch v6, Seaport 1.6, the OpenSea conduit, Safe
-MultiSendCallOnly) drop to low. The list is in `src/lib.rs`.
+MultiSendCallOnly) drop to low. The list is in `crates/presign/src/lib.rs`.
 
 ## Measured vs Claimed
 
 | Claim | Value | How measured | Date |
 |---|---|---|---|
 | EIP-712 hashes are correct | matches spec vector | `eip712_hashes_match_the_spec_example` test, Mail example from EIP-712 | 2026-11-17 |
-| Verdicts on known patterns | 22 of 22 fixtures | `cargo test`; fixtures in `tests/fixtures` are built by hand, not captured from live attacks | 2026-11-17 |
+| Verdicts on known patterns | 22 of 22 fixtures | `cargo test`; fixtures in `crates/presign/tests/fixtures` are built by hand, not captured from live attacks | 2026-11-17 |
 | Recall on real drainer requests | not measured yet | | |
 | False positive rate on normal requests | not measured yet | | |
 | p50 / p99 latency per request | not measured yet | | |

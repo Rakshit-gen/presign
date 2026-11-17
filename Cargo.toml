@@ -1,15 +1,16 @@
-[package]
-name = "presign"
+[workspace]
+resolver = "3"
+members = ["crates/*"]
+
+[workspace.package]
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.85"
-description = "Checks what a wallet is about to sign and flags drainer patterns"
 license = "MIT"
 repository = "https://github.com/Rakshit-gen/presign"
-keywords = ["ethereum", "wallet", "security", "eip712", "drainer"]
-categories = ["command-line-utilities", "cryptography::cryptocurrencies"]
 
-[dependencies]
+[workspace.dependencies]
+presign = { path = "crates/presign" }
 alloy-dyn-abi = { version = "1.7.3", features = ["eip712"] }
 alloy-primitives = "1.7.3"
 alloy-sol-types = "1.7.3"

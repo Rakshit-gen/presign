@@ -1939,6 +1939,14 @@ dependencies = [
 ]
 
 [[package]]
+name = "presign-wasm"
+version = "0.1.0"
+dependencies = [
+ "presign",
+ "serde_json",
+]
+
+[[package]]
 name = "primitive-types"
 version = "0.12.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"

@@ -12,7 +12,7 @@ const USAGE: &str = "\
 usage: presign-eval build [--out DIR] [--rpc URL] [--archive-rpc URL] [--drainers N]
                           [--per-drainer N] [--blocks N] [--benign-per-block N] [--seed S]
                           [--offset N]
-       presign-eval score [--data DIR] [--rpc URL]
+       presign-eval score [--data DIR] [--rpc URL] [--exclude DIR]
 
 build  downloads ScamSniffer's blacklist, samples drainer activity through
        Blockscout and benign activity from recent blocks, and writes
@@ -20,7 +20,8 @@ build  downloads ScamSniffer's blacklist, samples drainer activity through
 score  runs presign over the dataset and writes DIR/results.json plus a
        Markdown summary on stdout. With --rpc, approval spenders are also
        checked on-chain and results go to DIR/results-online.json (no latency
-       figures, since those would time the node)";
+       figures, since those would time the node). --exclude drops samples
+       whose source transaction also appears in another dataset";
 
 struct Args(Vec<String>);
 
@@ -69,7 +70,19 @@ fn run() -> Result<(), String> {
         }
         "score" => {
             let dir = PathBuf::from(args.get("--data").unwrap_or("eval/data"));
-            let samples = score::load(&dir)?;
+            let mut samples = score::load(&dir)?;
+            if let Some(other) = args.get("--exclude") {
+                let seen: std::collections::HashSet<String> = score::load(&PathBuf::from(other))?
+                    .into_iter()
+                    .map(|s| s.source)
+                    .collect();
+                let before = samples.len();
+                samples.retain(|s| !seen.contains(&s.source));
+                eprintln!(
+                    "excluded {} samples also in {other}",
+                    before - samples.len()
+                );
+            }
             let (results, out) = match args.get("--rpc") {
                 None => (
                     score::score(&samples, score::TIMING_PASSES, presign::analyze),

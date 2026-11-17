@@ -15,6 +15,7 @@ pub const TIMING_PASSES: usize = 5;
 pub struct Sample {
     pub label: String,
     pub kind: String,
+    pub source: String,
     pub request: Value,
 }
 
@@ -28,6 +29,7 @@ pub fn load(dir: &Path) -> Result<Vec<Sample>, String> {
             Ok(Sample {
                 label: v["label"].as_str().unwrap_or_default().to_string(),
                 kind: v["kind"].as_str().unwrap_or_default().to_string(),
+                source: v["source"].as_str().unwrap_or_default().to_string(),
                 request: v["request"].clone(),
             })
         })
@@ -201,6 +203,7 @@ mod tests {
         let sample = |label: &str, method: &str| Sample {
             label: label.into(),
             kind: "k".into(),
+            source: String::new(),
             request: json!({"method": method, "params": ["0x00", "0x00"]}),
         };
         let samples = [
